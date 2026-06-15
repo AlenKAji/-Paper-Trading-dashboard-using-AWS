@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serverless Paper Trading Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1 { text-align: center; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .status { text-align: center; font-size: 0.9em; color: #7f8c8d; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #ecf0f1; }
+        th { background-color: #f8f9fa; color: #2c3e50; font-weight: 600; }
+        tr:hover { background-color: #fdfdfe; }
+        .ticker { font-weight: bold; color: #2980b9; }
+        .btn { display: block; width: 100%; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; transition: background 0.3s; }
+        .btn:hover { background-color: #2980b9; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Live Market Feed</h1>
+        <div class="status" id="statusText">Waiting for data...</div>
+        
+        <button class="btn" onclick="fetchStockData()">Refresh Market Data</button>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Ticker</th>
+                    <th>Price</th>
+                    <th>Volume</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="4" style="text-align:center;">Click refresh to load data</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // === REPLACE THIS WITH YOUR REAL API GATEWAY URL ===
+        const API_URL = 'https://6dlpmmawca.execute-api.ap-south-1.amazonaws.com/stocks';
+
+        async function fetchStockData() {
+            const tbody = document.getElementById('tableBody');
+            const status = document.getElementById('statusText');
+            
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Fetching live data from AWS...</td></tr>';
+            status.innerText = "Connecting to API Gateway...";
+
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                
+                tbody.innerHTML = ''; 
+                
+                data.forEach(item => {
+                    // Format the timestamp cleanly
+                    const dateObj = new Date(item.timestamp);
+                    const timeString = dateObj.toLocaleTimeString();
+
+                    // Create a visual badge based on the AI prediction
+                    const anomalyBadge = item.is_anomaly 
+                        ? '<span style="color:#e74c3c; font-weight:bold;">⚠️ HIGH VOLUME SPIKE</span>' 
+                        : '<span style="color:#2ecc71;">Normal</span>';
+
+                    const row = `<tr>
+                        <td>${timeString}</td>
+                        <td class="ticker">${item.ticker}</td>
+                        <td>$${item.price.toFixed(2)}</td>
+                        <td>${item.volume}</td>
+                        <td>${anomalyBadge}</td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                    });
+                
+                status.innerText = `Successfully loaded ${data.length} records.`;
+                
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:red;">Error connecting to API. Check your URL!</td></tr>`;
+                status.innerText = "Connection Failed.";
+                console.error('Fetch Error:', error);
+            }
+        }
+
+        // Automatically fetch data when you open the file
+        window.onload = fetchStockData;
+    </script>
+</body>
+</html>
